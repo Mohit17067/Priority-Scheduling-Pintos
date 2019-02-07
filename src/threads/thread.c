@@ -309,7 +309,6 @@ thread_yield (void)
   ASSERT (!intr_context ());
 
   old_level = intr_disable ();
-  /*list_push_back (&ready_list, &cur->elem);*/
   if (cur != idle_thread)
     list_insert_ordered (&ready_list, &cur->elem, compare_priority, 0);
   cur->status = THREAD_READY;
@@ -591,7 +590,6 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 
 /* Compares the priority of the two threards and returns true if priority 
    of first thread is greater than the second thread. */
-
 bool compare_priority(struct list_elem *l1, struct list_elem *l2,void *aux)
 {
   struct thread *t1 = list_entry(l1,struct thread,elem);
