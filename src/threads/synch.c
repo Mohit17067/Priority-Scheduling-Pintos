@@ -107,7 +107,7 @@ sema_try_down (struct semaphore *sema)
 
    This function may be called from an interrupt handler. */
 void
-sema_up (struct semaphore *sema) 
+sema_up (struct semaphore *sema)
 {
   enum intr_level old_level;
 
@@ -318,6 +318,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
 
+  list_sort(&cond->waiters, compare_sema, 0);
   if (!list_empty (&cond->waiters)) 
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
@@ -337,4 +338,18 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
+}
+
+
+/*sorts the corresponding semaphores on the basis of the priority
+of the first thread in waiting list of each semaphore.*/
+bool compare_sema(struct list_elem *l1, struct list_elem *l2,void *aux)
+{
+  struct semaphore_elem *t1 = list_entry(l1,struct semaphore_elem,elem);
+  struct semaphore_elem *t2 = list_entry(l2,struct semaphore_elem,elem);
+  struct semaphore *s1=&t1->semaphore;
+  struct semaphore *s2=&t2->semaphore;
+  if( list_entry (list_front(&s1->waiters), struct thread, elem)->priority > list_entry (list_front(&s2->waiters),struct thread, elem)->priority)
+    return true;
+  return false;
 }

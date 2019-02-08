@@ -307,7 +307,6 @@ thread_yield (void)
   enum intr_level old_level;
   
   ASSERT (!intr_context ());
-
   old_level = intr_disable ();
   if (cur != idle_thread)
     list_insert_ordered (&ready_list, &cur->elem, compare_priority, 0);
