@@ -307,6 +307,7 @@ thread_yield (void)
   enum intr_level old_level;
   
   ASSERT (!intr_context ());
+
   old_level = intr_disable ();
   if (cur != idle_thread)
     list_insert_ordered (&ready_list, &cur->elem, compare_priority, 0);
@@ -336,9 +337,15 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
-  thread_yield();
-
+  
+  if(thread_current()->priority == thread_current()->initial_priority)
+  { 
+    
+    thread_current ()->priority = new_priority;
+    thread_current()->initial_priority=new_priority;
+    thread_yield();
+  }
+  thread_current()->initial_priority=new_priority;
 }
 
 /* Returns the current thread's priority. */
@@ -465,6 +472,8 @@ init_thread (struct thread *t, const char *name, int priority)
   strlcpy (t->name, name, sizeof t->name);
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
+ 
+  t->initial_priority = priority;
   t->magic = THREAD_MAGIC;
 
   old_level = intr_disable ();
@@ -590,10 +599,14 @@ uint32_t thread_stack_ofs = offsetof (struct thread, stack);
 /* Compares the priority of the two threards and returns true if priority 
    of first thread is greater than the second thread. */
 bool compare_priority(struct list_elem *l1, struct list_elem *l2,void *aux)
-{
+{ 
   struct thread *t1 = list_entry(l1,struct thread,elem);
   struct thread *t2 = list_entry(l2,struct thread,elem);
   if( t1->priority > t2->priority)
     return true;
   return false;
+}
+ void sort_ready_list(void)
+{
+  list_sort(&ready_list, compare_priority, 0);
 }
