@@ -69,12 +69,10 @@ sema_down (struct semaphore *sema)
 
   old_level = intr_disable ();
   while (sema->value == 0) 
-    {
-      list_insert_ordered (&sema->waiters, &thread_current ()->elem, compare_priority, 0);
-      
-      thread_block ();
-      
-    }
+  {
+    list_insert_ordered (&sema->waiters, &thread_current ()->elem, compare_priority, 0);
+    thread_block ();
+  }
   sema->value--;
   intr_set_level (old_level);
 }
@@ -205,31 +203,35 @@ lock_init (struct lock *lock)
 void
 lock_acquire (struct lock *lock)
 {
+  
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (!lock_held_by_current_thread (lock));
   
   if(lock->holder != NULL)
-{
-  if(lock->holder->priority < thread_current()->priority)
-{  
-    lock->holder->priorities[lock->holder->size] = thread_current()->priority;
-    lock->holder->size+=1;
-    lock->holder->priority = thread_current()->priority;
-
-    if(!lock->is_donated)
-      lock->holder->donation_no +=1;
-    lock->is_donated = true;
-    
-    sort_ready_list();
-    
-}
-}
- 
-  
+  {
+    thread_current()->waiting_for= lock;
+    if(lock->holder->priority < thread_current()->priority)
+    {  struct thread *temp=thread_current();
+       while(temp->waiting_for!=NULL)
+       {
+         struct lock *cur_lock=temp->waiting_for;
+         cur_lock->holder->priorities[cur_lock->holder->size] = temp->priority;
+         cur_lock->holder->size+=1;
+         cur_lock->holder->priority = temp->priority;
+         if(cur_lock->holder->status == THREAD_READY)
+           break;
+         temp=cur_lock->holder;
+       }
+       if(!lock->is_donated)
+         lock->holder->donation_no +=1;
+       lock->is_donated = true;
+       sort_ready_list();
+    }
+  }
   sema_down (&lock->semaphore);
   lock->holder = thread_current ();
-  
+  lock->holder->waiting_for=NULL;
 }
 
 /* Tries to acquires LOCK and returns true if successful or false
@@ -241,6 +243,7 @@ lock_acquire (struct lock *lock)
 bool
 lock_try_acquire (struct lock *lock)
 {
+
   bool success;
 
   ASSERT (lock != NULL);
@@ -262,19 +265,22 @@ lock_release (struct lock *lock)
 { 
   ASSERT (lock != NULL);
   ASSERT (lock_held_by_current_thread (lock));
+
+  struct semaphore *lock_sema=&lock->semaphore;
+  list_sort(&lock_sema->waiters, compare_priority, 0);
+
   if (lock->is_donated)
   {
-  thread_current()->donation_no -=1;
-  thread_current()->priorities[(thread_current()->size)-1] = 0;
-  thread_current()->size -= 1;
-  thread_current()->priority = thread_current()->priorities[(thread_current()->size)-1];
-  lock->is_donated = false;
+    thread_current()->donation_no -=1;
+    int elem=list_entry (list_front (&lock_sema->waiters),struct thread, elem)->priority;
+    search_array(thread_current(),elem);
+    thread_current()->priority = thread_current()->priorities[(thread_current()->size)-1];
+    lock->is_donated = false;
   }
-
   if(thread_current()->donation_no ==0)
   {
-  thread_current()-> size=1;
-  thread_current()-> priority = thread_current()->priorities[0];
+    thread_current()-> size=1;
+    thread_current()-> priority = thread_current()->priorities[0];
   }
   lock->holder = NULL;
   sema_up (&lock->semaphore);

@@ -339,7 +339,7 @@ void
 thread_set_priority (int new_priority) 
 {
   thread_current()->priorities[0] = new_priority;
-  if(thread_current()->size == 1)
+  if(thread_current()->size==1)
   { 
     thread_current ()->priority = new_priority;
     thread_yield();
@@ -476,8 +476,8 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priorities[0] = priority;
   t->donation_no=0;
   t->size = 1;
-
   t->magic = THREAD_MAGIC;
+  t->waiting_for=NULL;
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
@@ -608,7 +608,28 @@ bool compare_priority(struct list_elem *l1, struct list_elem *l2,void *aux)
     return true;
   return false;
 }
+
+/*Sorts the ready_list present in thread.c*/
  void sort_ready_list(void)
 {
   list_sort(&ready_list, compare_priority, 0);
+}
+
+/* Searches the stack of Donation priority list for the priority of the donor
+   thread to remove it from the list and change the current priority 
+   accordingly*/
+void search_array(struct thread *cur,int elem)
+{ int found=0;
+  for(int i=0;i<(cur->size)-1;i++)
+  {
+  if(cur->priorities[i]==elem)
+    {
+     found=1;
+    }
+  if(found==1)
+    {
+     cur->priorities[i]=cur->priorities[i+1];
+    }
+  }
+  cur->size -=1;
 }

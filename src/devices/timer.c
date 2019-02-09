@@ -95,11 +95,15 @@ timer_elapsed (int64_t then)
 void
 timer_sleep (int64_t ticks) 
 {
-  int64_t start = timer_ticks ();
+  struct lock sleep_lock;
+  lock_init (&sleep_lock);
+  lock_acquire (&sleep_lock);
+
 
   ASSERT (intr_get_level () == INTR_ON);
   struct thread *cur = thread_current ();
 
+  int64_t start = timer_ticks ();
   thread_current()->wakeup_time = start + ticks;
   list_insert_ordered(&sleeping_threads, &cur->elem, compare_time, 0);
 
@@ -111,6 +115,8 @@ timer_sleep (int64_t ticks)
 
   // Enable interrupt
   intr_set_level (old_level);
+
+  lock_release (&sleep_lock);
 }
 
 /* Sleeps for approximately MS milliseconds.  Interrupts must be
@@ -298,5 +304,4 @@ void wakeup_thread() {
     else
       return;
   }
-
 }
