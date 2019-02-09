@@ -1,3 +1,4 @@
+
 #include "threads/thread.h"
 #include <debug.h>
 #include <stddef.h>
@@ -337,15 +338,12 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  
-  if(thread_current()->priority == thread_current()->initial_priority)
+  thread_current()->priorities[0] = new_priority;
+  if(thread_current()->size == 1)
   { 
-    
     thread_current ()->priority = new_priority;
-    thread_current()->initial_priority=new_priority;
     thread_yield();
   }
-  thread_current()->initial_priority=new_priority;
 }
 
 /* Returns the current thread's priority. */
@@ -473,9 +471,13 @@ init_thread (struct thread *t, const char *name, int priority)
   t->stack = (uint8_t *) t + PGSIZE;
   t->priority = priority;
  
-  t->initial_priority = priority;
-  t->magic = THREAD_MAGIC;
+ /* Make list of priorities and not the number of 
+    locks with each thread*/
+  t->priorities[0] = priority;
+  t->donation_no=0;
+  t->size = 1;
 
+  t->magic = THREAD_MAGIC;
   old_level = intr_disable ();
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);

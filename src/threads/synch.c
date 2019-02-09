@@ -1,3 +1,4 @@
+
 /* This file is derived from source code for the Nachos
    instructional operating system.  The Nachos copyright notice
    is reproduced in full below. */
@@ -212,7 +213,12 @@ lock_acquire (struct lock *lock)
 {
   if(lock->holder->priority < thread_current()->priority)
 {  
+    lock->holder->priorities[lock->holder->size] = thread_current()->priority;
+    lock->holder->size+=1;
     lock->holder->priority = thread_current()->priority;
+
+    if(!lock->is_donated)
+      lock->holder->donation_no +=1;
     lock->is_donated = true;
     
     sort_ready_list();
@@ -258,8 +264,17 @@ lock_release (struct lock *lock)
   ASSERT (lock_held_by_current_thread (lock));
   if (lock->is_donated)
   {
-  thread_current()->priority = thread_current()->initial_priority;
+  thread_current()->donation_no -=1;
+  thread_current()->priorities[(thread_current()->size)-1] = 0;
+  thread_current()->size -= 1;
+  thread_current()->priority = thread_current()->priorities[(thread_current()->size)-1];
   lock->is_donated = false;
+  }
+
+  if(thread_current()->donation_no ==0)
+  {
+  thread_current()-> size=1;
+  thread_current()-> priority = thread_current()->priorities[0];
   }
   lock->holder = NULL;
   sema_up (&lock->semaphore);
